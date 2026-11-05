@@ -117,8 +117,11 @@ def web_search_tool(query: str) -> str:
     Use for football news or facts the football_api cannot answer. Do not search for other topics.
     Queries unrelated to football will be ignored.
     Only provide results relevant to football.
+
+    Use small queries (3 to 4 words), if it fails try with different keywords or simplify the query.
     """
-    results = DDGS().text(query, max_results=5)
-    if not results:
-        return "No results found."
-    return "\n\n".join(f"{r['title']}\n{r['href']}\n{r['body']}" for r in results)
+    try:
+        results = DDGS().text(query, max_results=5)
+        return "\n\n".join(f"{r['title']}\n{r['href']}\n{r['body']}" for r in results)
+    except Exception as e:
+        return f"Search failed: {e}. Try a shorter, simpler query"

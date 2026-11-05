@@ -8,5 +8,6 @@ dependencies = [
     "ddgs>=9.16.1",
     "langchain>=1.4.9",
     "langchain-openrouter>=0.2.9",
+    "langfuse>=5.2.0",
     "langgraph>=1.2.20",
 ]

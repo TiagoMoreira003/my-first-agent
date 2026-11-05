@@ -7,7 +7,13 @@ from langchain.messages import AnyMessage, ToolMessage
 from typing_extensions import TypedDict, Annotated
 from agent import football_api, web_search_tool
 from typing import Literal
+from langfuse.langchain import CallbackHandler
+from langfuse import get_client
 
+langfuse = get_client()
+langfuse_handler = CallbackHandler()
+
+print("Langfuse authenticated: " + str(langfuse.auth_check()))
 
 class MessagesState(TypedDict):
     messages: Annotated[list[AnyMessage], operator.add]
@@ -68,8 +74,10 @@ def should_continue(state: MessagesState) -> Literal["tool_node", END]:
     return END
 
 model = ChatOpenRouter(
-    model="openrouter/free",
-    temperature=0.7)
+    #model="openrouter/free",
+    model="anthropic/claude-sonnet-4.6",
+    temperature=0.7
+)
 
 tools = [football_api, web_search_tool]
 model_with_tools = model.bind_tools(tools)
@@ -95,8 +103,12 @@ agent_builder.add_edge("tool_node", "llm_call")
 agent = agent_builder.compile()
 
 messages = [
-    HumanMessage("Who was the first king of portugal?"),
+    HumanMessage("I heard that porto won their last match against napoles for the champions league this season 26/27, do you think that they will pass" \
+    "the league phase?"),
 ]
-messages = agent.invoke({"messages": messages})
+messages = agent.invoke(
+    {"messages": messages},
+    config={"callbacks": [langfuse_handler]}
+)
 for m in messages["messages"]:
     m.pretty_print()
