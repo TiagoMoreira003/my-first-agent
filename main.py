@@ -8,7 +8,9 @@ from typing_extensions import TypedDict, Annotated
 from agent import football_api, web_search_tool
 from typing import Literal
 from langfuse.langchain import CallbackHandler
-from langfuse import get_client
+from langfuse import get_client, propagate_attributes
+
+import random
 
 langfuse = get_client()
 langfuse_handler = CallbackHandler()
@@ -103,12 +105,16 @@ agent_builder.add_edge("tool_node", "llm_call")
 agent = agent_builder.compile()
 
 messages = [
-    HumanMessage("I heard that porto won their last match against napoles for the champions league this season 26/27, do you think that they will pass" \
-    "the league phase?"),
+    HumanMessage("Porto vs Benfica, which one is bigger. football wise!"),
 ]
-messages = agent.invoke(
+
+random_number = str(random.randint(1, 100))
+
+with propagate_attributes(session_id=random_number):
+    messages = agent.invoke(
     {"messages": messages},
     config={"callbacks": [langfuse_handler]}
 )
+    
 for m in messages["messages"]:
     m.pretty_print()

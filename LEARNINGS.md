@@ -30,3 +30,7 @@ A log of what I built and learned in each iteration.
 - **Fix:** wrapped the search in a `try/except` that returns the error to the model as text, and added a line to the tool docstring asking for short, simple queries.
 - **Result:** after the fix the agent gave a good answer.
 - **Learned:** Langfuse made the cause visible in one trace, so I did not have to guess.
+
+## Iteration 5: Session management with Langfuse
+
+- Now I added the session argument it is not dynamic yet, but this already aggregates a single call under a session ID in Langfuse.
