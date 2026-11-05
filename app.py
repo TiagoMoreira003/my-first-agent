@@ -5,7 +5,7 @@ from langchain_openrouter import ChatOpenRouter
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain.messages import AnyMessage, ToolMessage
 from typing_extensions import TypedDict, Annotated
-from agent import football_api, web_search_tool
+from tools import best_club_info, football_api, web_search_tool
 from typing import Literal
 from langfuse.langchain import CallbackHandler
 from langfuse import get_client, propagate_attributes
@@ -77,11 +77,11 @@ def should_continue(state: MessagesState) -> Literal["tool_node", END]:
 
 model = ChatOpenRouter(
     #model="openrouter/free",
-    model="anthropic/claude-sonnet-4.6",
+    model="mistralai/mistral-nemo",
     temperature=0.7
 )
 
-tools = [football_api, web_search_tool]
+tools = [football_api, web_search_tool, best_club_info]
 model_with_tools = model.bind_tools(tools)
 tools_by_name = {t.name: t for t in tools}
 

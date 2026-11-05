@@ -6,6 +6,13 @@ from urllib.parse import urlencode
 from ddgs import DDGS
 from langchain.tools import tool
 
+from langchain_community.retrievers import BM25Retriever
+from langchain_core.tools import Tool
+
+from retriever import docs
+
+bm25_retriever = BM25Retriever.from_documents(docs)
+
 ALLOWED_ENDPOINTS = {"leagues", "teams", "standings", "fixtures", "players/topscorers"}
 MAX_CHARS = 8000  # keep tool output small for the model's context
 
@@ -125,3 +132,12 @@ def web_search_tool(query: str) -> str:
         return "\n\n".join(f"{r['title']}\n{r['href']}\n{r['body']}" for r in results)
     except Exception as e:
         return f"Search failed: {e}. Try a shorter, simpler query"
+
+@tool(name_or_callable="best_club_info")
+def best_club_info(query: str) -> str:
+    """Retrieves detailed information about Portuguese football clubs based on their name."""
+    results = bm25_retriever.invoke(query)
+    if results:
+        return "\n\n".join([doc.page_content for doc in results[:3]])
+    else:
+        return "No matching guest information found."
