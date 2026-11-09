@@ -141,3 +141,12 @@ def best_club_info(query: str) -> str:
         return "\n\n".join([doc.page_content for doc in results[:3]])
     else:
         return "No matching guest information found."
+
+@tool(name_or_callable="best_club_info")
+def best_club_info(query: str) -> str:
+    """Retrieves detailed information about Portuguese football clubs based on their name."""
+    results = bm25_retriever.invoke(query)
+    if results:
+        return "\n\n".join([doc.page_content for doc in results[:3]])
+    else:
+        return "No matching guest information found."

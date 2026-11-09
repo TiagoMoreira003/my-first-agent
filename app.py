@@ -2,8 +2,9 @@ import operator
 
 from langgraph.graph import StateGraph, START, END
 from langchain_openrouter import ChatOpenRouter
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain.messages import AnyMessage, ToolMessage
+from pydantic import BaseModel
 from typing_extensions import TypedDict, Annotated
 from tools import best_club_info, football_api, web_search_tool
 from typing import Literal
@@ -19,7 +20,14 @@ print("Langfuse authenticated: " + str(langfuse.auth_check()))
 
 class MessagesState(TypedDict):
     messages: Annotated[list[AnyMessage], operator.add]
+    is_football: bool
     llm_calls: int
+
+class Verdict(BaseModel):
+    is_football: bool
+    reason: str
+
+
 
 def llm_call(state: dict):
     """LLM decides whether to call a tool or not"""
@@ -42,6 +50,12 @@ def llm_call(state: dict):
         ],
         "llm_calls": state.get('llm_calls', 0) + 1
     }    
+
+def guard(state: dict):
+    """Guard to ensure that the question is about football before starting the whole workflow"""
+    message = "Is this question about football? Set is_football=true when unsure."
+    verdict = guard_model.invoke([SystemMessage(content=message), *state["messages"][-3:]])
+    return {"is_football": verdict.is_football}
 
 def football_api_was_called(messages: list) -> bool:
     return any(
@@ -75,14 +89,23 @@ def should_continue(state: MessagesState) -> Literal["tool_node", END]:
     # Otherwise, we stop (reply to the user)
     return END
 
+def refuse(state: dict):
+    """Refuse to answer if the question is not about football"""
+    
+    return {"messages": [AIMessage(content="I can only answer questions about football.")]}
+
+def route_after_guard(state: MessagesState) -> Literal["llm_call", "refuse"]:
+    return "llm_call" if state["is_football"] else "refuse"
+
 model = ChatOpenRouter(
-    #model="openrouter/free",
-    model="mistralai/mistral-nemo",
+    model="openrouter/free",
+    #model="mistralai/mistral-nemo",
     temperature=0.7
 )
 
 tools = [football_api, web_search_tool, best_club_info]
 model_with_tools = model.bind_tools(tools)
+guard_model = model.with_structured_output(Verdict)
 tools_by_name = {t.name: t for t in tools}
 
 # Build workflow
@@ -91,9 +114,13 @@ agent_builder = StateGraph(MessagesState)
 # Add nodes
 agent_builder.add_node("llm_call", llm_call)
 agent_builder.add_node("tool_node", tool_node)
+agent_builder.add_node("guard", guard)
+agent_builder.add_node("refuse", refuse)
 
 # Add edges to connect nodes
-agent_builder.add_edge(START, "llm_call")
+agent_builder.add_edge(START, "guard")
+agent_builder.add_conditional_edges("guard", route_after_guard, ["llm_call", "refuse"])
+agent_builder.add_edge("refuse", END)
 agent_builder.add_conditional_edges(
     "llm_call",
     should_continue,
@@ -105,9 +132,11 @@ agent_builder.add_edge("tool_node", "llm_call")
 agent = agent_builder.compile()
 
 messages = [
-    HumanMessage("Porto vs Benfica, which one is bigger. football wise!"),
+   #HumanMessage("Porto vs Benfica, which one is bigger. football wise!"),
+    HumanMessage("Who was the first king of portugal?")
 ]
 
+# guard_model = model.guard(messages[-1].content, {"messages": messages})
 random_number = str(random.randint(1, 100))
 
 with propagate_attributes(session_id=random_number):
